@@ -3,11 +3,11 @@
 import os
 from AR import AccuRev, ARWorkspace, ARException
 
-STREAMS_FILE = r'D:\Test\streams.txt'
-ACCUREV_WS_PATH = r'D:\Test'
-ACCUREV_WS_PATTERN = 'dev.ws.OpenGrok_'
-ACCUREV_USER= 'buildmgr'
-ACCUREV_PWD = '$1330BLD!'
+STREAMS_FILE = '/home/user/streams.txt'
+ACCUREV_WS_PATH = '/home/user/ar'
+ACCUREV_WS_PATTERN = 'opengrok_'
+ACCUREV_USER= 'user'
+ACCUREV_PWD = 'pass'
 
 ar = AccuRev()
 ar.login(ACCUREV_USER, ACCUREV_PWD)
