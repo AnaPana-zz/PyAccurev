@@ -19,9 +19,10 @@ class ARException(Exception):
         return str(self.value)
 
 class AccuRev(object):
-    """"Use this class for getting AccuRev info (host, port, user),
-        connection to server, login/logout commands.
-        """
+    """
+    Use this class for getting AccuRev info (host, port, user),
+    connection to server, login/logout commands.
+    """
     
     # Not in directory message
     NID_MESSAGE = "You are not in a directory associated with a workspace"
@@ -47,9 +48,18 @@ class AccuRev(object):
         return stdout, stderr, retcode
     
     def login(self, username, passwd):
+	"""
+	Login with your username and password and then execute command using :attr:`AR.run()` method.
+
+	:param: username (required)
+	:param: password (required)
+	"""
         self.run("login %s %s" % (username, passwd))
     
     def logout(self):
+	"""
+	Logout from the system.
+	"""
         self.run("logout")
 
     def change_root(self, root):
@@ -127,9 +137,11 @@ class ARWorkspace(AccuRev):
     
     @workspace_name_required
     def info(self):
-        """Returns specified workspace parameters dictionary. Keys are:
-            'fileModTime','depot','user_id','Name','Stream','Target_trans',
-            'Type','Storage','EOL','Host','Trans','user_name'
+        """
+	info()
+	Returns specified workspace parameters dictionary. Keys are:
+        'fileModTime','depot','user_id','Name','Stream','Target_trans',
+        'Type','Storage','EOL','Host','Trans','user_name'
         """
         try:
             info = self.run("show -a -fx wspaces")[0]
@@ -159,11 +171,17 @@ class ARWorkspace(AccuRev):
 
     @workspace_name_required
     def change_name(self, name=""):
+	"""
+	Change some name :)
+	"""
         return self.__change_parameter("name", name)
     
     @workspace_name_required
     def change_stream(self, stream=""):
-        return self.__change_parameter("stream", stream)
+        """
+	Changes current stream to the given one.
+	"""
+	return self.__change_parameter("stream", stream)
     
     @workspace_name_required
     def change_location(self, location=""):

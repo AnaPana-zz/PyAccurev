@@ -1,0 +1,338 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>pyaccurev.AR &mdash; PyAccuRev 1.0.0 documentation</title>
+    
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../../',
+        VERSION:     '1.0.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="top" title="PyAccuRev 1.0.0 documentation" href="../../index.html" />
+    <link rel="up" title="Module code" href="../index.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head>
+  <body role="document">
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for pyaccurev.AR</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;This module provides most common functions for AccuRev.</span>
+<span class="sd">   Author: Anastasia Panchenko</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">socket</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">xml.etree.ElementTree</span> <span class="kn">as</span> <span class="nn">ElementTree</span>
+
+<span class="k">class</span> <span class="nc">ARException</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Exception thrown by AR in case of some AccuRev exceptions&quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="ne">Exception</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+        
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+
+<div class="viewcode-block" id="AccuRev"><a class="viewcode-back" href="../../api.html#pyaccurev.AccuRev">[docs]</a><span class="k">class</span> <span class="nc">AccuRev</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Use this class for getting AccuRev info (host, port, user),</span>
+<span class="sd">    connection to server, login/logout commands.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    
+    <span class="c1"># Not in directory message</span>
+    <span class="n">NID_MESSAGE</span> <span class="o">=</span> <span class="s2">&quot;You are not in a directory associated with a workspace&quot;</span>
+    <span class="c1"># Undefined value</span>
+    <span class="n">UNDEFINED</span> <span class="o">=</span> <span class="s2">&quot;(undefined)&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">__info</span><span class="p">()</span>
+
+<div class="viewcode-block" id="AccuRev.run"><a class="viewcode-back" href="../../api.html#pyaccurev.AccuRev.run">[docs]</a>    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">False</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Runs raw AccuRev commands.&quot;&quot;&quot;</span>
+        
+        <span class="n">out</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span> <span class="k">if</span> <span class="n">verbose</span> <span class="k">else</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">Popen</span><span class="p">(</span><span class="s2">&quot;accurev </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">command</span><span class="p">,</span>
+                               <span class="n">stdout</span><span class="o">=</span><span class="n">out</span><span class="p">,</span>
+                               <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">PIPE</span><span class="p">)</span>
+        <span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">communicate</span><span class="p">()</span>
+        <span class="n">retcode</span> <span class="o">=</span> <span class="n">cmd</span><span class="o">.</span><span class="n">returncode</span>
+        
+        <span class="k">if</span> <span class="n">retcode</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">ARException</span><span class="p">(</span><span class="n">stderr</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">stdout</span><span class="p">,</span> <span class="n">stderr</span><span class="p">,</span> <span class="n">retcode</span></div>
+    
+<div class="viewcode-block" id="AccuRev.login"><a class="viewcode-back" href="../../api.html#pyaccurev.AccuRev.login">[docs]</a>    <span class="k">def</span> <span class="nf">login</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Login with your username and password and then execute command using :attr:`AR.run()` method.</span>
+
+<span class="sd">	:param: username (required)</span>
+<span class="sd">	:param: password (required)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;login </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">passwd</span><span class="p">))</span></div>
+    
+<div class="viewcode-block" id="AccuRev.logout"><a class="viewcode-back" href="../../api.html#pyaccurev.AccuRev.logout">[docs]</a>    <span class="k">def</span> <span class="nf">logout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Logout from the system.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;logout&quot;</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="AccuRev.change_root"><a class="viewcode-back" href="../../api.html#pyaccurev.AccuRev.change_root">[docs]</a>    <span class="k">def</span> <span class="nf">change_root</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">root</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Use this function for moving to the workspace directory</span>
+<span class="sd">           &quot;&quot;&quot;</span>
+        
+        <span class="k">print</span> <span class="s2">&quot;Changing directory to </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> <span class="n">root</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">chdir</span><span class="p">(</span><span class="n">root</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">print</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s2">&quot;Done.&quot;</span></div>
+
+    
+    <span class="k">def</span> <span class="nf">__info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Sets main environment parameters as properties.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+        
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+                       <span class="s2">&quot;current_user&quot;</span>      <span class="p">:</span> <span class="s2">&quot;Principal&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_host&quot;</span>      <span class="p">:</span> <span class="s2">&quot;Host&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_server&quot;</span>    <span class="p">:</span> <span class="s2">&quot;Server name&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_port&quot;</span>      <span class="p">:</span> <span class="s2">&quot;Port&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_encoding&quot;</span>  <span class="p">:</span> <span class="s2">&quot;DB Encoding&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_bin&quot;</span>       <span class="p">:</span> <span class="s2">&quot;ACCUREV_BIN&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_depot&quot;</span>     <span class="p">:</span> <span class="s2">&quot;Depot&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_workspace&quot;</span> <span class="p">:</span> <span class="s2">&quot;Workspace/ref&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_stream&quot;</span>    <span class="p">:</span> <span class="s2">&quot;Basis&quot;</span><span class="p">,</span>
+                       <span class="s2">&quot;current_location&quot;</span>  <span class="p">:</span> <span class="s2">&quot;Top&quot;</span><span class="p">,</span>
+                      <span class="p">}</span>
+        
+        <span class="n">info</span><span class="p">,</span> <span class="n">error</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;info -v&quot;</span><span class="p">)[:</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">NID_MESSAGE</span> <span class="ow">in</span> <span class="n">error</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">nid_error</span> <span class="o">=</span> <span class="n">error</span>
+        
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">v</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">info</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">i</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">UNDEFINED</span><span class="p">)</span></div>
+    
+    
+<div class="viewcode-block" id="ARWorkspace"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace">[docs]</a><span class="k">class</span> <span class="nc">ARWorkspace</span><span class="p">(</span><span class="n">AccuRev</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;A class for working with current workspace or for</span>
+<span class="sd">       creating new workspace.</span>
+<span class="sd">       &quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">workspace</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">__class__</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span> <span class="o">=</span> <span class="n">workspace</span>
+            
+    <span class="k">def</span> <span class="nf">workspace_dir_required</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Decorator for functions which should be called only</span>
+<span class="sd">        in workspace directory.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">change_root</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">info</span><span class="p">()[</span><span class="s1">&#39;Storage&#39;</span><span class="p">])</span>
+            <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">wrapper</span>
+    
+    <span class="k">def</span> <span class="nf">workspace_name_required</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Use it for functions which requires workspace&#39;s name (change, remove, etc.).</span>
+<span class="sd">           &quot;&quot;&quot;</span>
+        <span class="k">def</span> <span class="nf">wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">:</span>
+                <span class="k">print</span> <span class="s2">&quot;Cann&#39;t execute &#39;</span><span class="si">%s</span><span class="s2">&#39; function&quot;</span> <span class="o">%</span> <span class="n">func</span><span class="o">.</span><span class="n">__name__</span>
+                <span class="k">raise</span> <span class="n">ARException</span><span class="p">(</span><span class="s2">&quot;Name of working workspace isn&#39;t set.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">func</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">wrapper</span>
+    
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.info"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.info">[docs]</a>    <span class="k">def</span> <span class="nf">info</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	info()</span>
+<span class="sd">	Returns specified workspace parameters dictionary. Keys are:</span>
+<span class="sd">        &#39;fileModTime&#39;,&#39;depot&#39;,&#39;user_id&#39;,&#39;Name&#39;,&#39;Stream&#39;,&#39;Target_trans&#39;,</span>
+<span class="sd">        &#39;Type&#39;,&#39;Storage&#39;,&#39;EOL&#39;,&#39;Host&#39;,&#39;Trans&#39;,&#39;user_name&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">info</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;show -a -fx wspaces&quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">fromstring</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">ElementTree</span><span class="o">.</span><span class="n">ParseError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">print</span> <span class="s2">&quot;Error parsing Accurev show output &#39;</span><span class="si">%s</span><span class="s2">&#39;. </span><span class="se">\n\n</span><span class="s2">Error: </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">info</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">ws</span> <span class="ow">in</span> <span class="n">res</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">ws</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_user</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">ws</span><span class="o">.</span><span class="n">attrib</span>
+        
+        <span class="k">raise</span> <span class="n">ARException</span><span class="p">(</span><span class="s2">&quot;Can&#39;t get info for </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="ARWorkspace.create"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.create">[docs]</a>    <span class="k">def</span> <span class="nf">create</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot; Use it for creating of new workspace.</span>
+<span class="sd">            Name, location and stream options are required.</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+        
+        <span class="n">required</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;location&quot;</span><span class="p">,</span> <span class="s2">&quot;stream&quot;</span><span class="p">]</span>
+        <span class="k">print</span> <span class="s2">&quot;Creating new workspace </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">name</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">required</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">i</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">ARException</span><span class="p">(</span><span class="s2">&quot;Workspace&#39;s </span><span class="si">%s</span><span class="s2"> is not set.&quot;</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;mkws -w </span><span class="si">%s</span><span class="s2"> -l </span><span class="si">%s</span><span class="s2"> -b </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">))</span>
+            <span class="k">print</span> <span class="s2">&quot;Done.&quot;</span></div>
+
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.change_name"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.change_name">[docs]</a>    <span class="k">def</span> <span class="nf">change_name</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+	<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Change some name :)</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__change_parameter</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span></div>
+    
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.change_stream"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.change_stream">[docs]</a>    <span class="k">def</span> <span class="nf">change_stream</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">	Changes current stream to the given one.</span>
+<span class="sd">	&quot;&quot;&quot;</span>
+	<span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__change_parameter</span><span class="p">(</span><span class="s2">&quot;stream&quot;</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span></div>
+    
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.change_location"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.change_location">[docs]</a>    <span class="k">def</span> <span class="nf">change_location</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">location</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__change_parameter</span><span class="p">(</span><span class="s2">&quot;location&quot;</span><span class="p">,</span> <span class="n">location</span><span class="p">)</span></div>
+
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.change_machinename"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.change_machinename">[docs]</a>    <span class="k">def</span> <span class="nf">change_machinename</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">machinename</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">__change_parameter</span><span class="p">(</span><span class="s2">&quot;machinename&quot;</span><span class="p">,</span> <span class="n">machinename</span><span class="p">)</span></div>
+    
+    <span class="nd">@workspace_name_required</span>
+    <span class="k">def</span> <span class="nf">__change_parameter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;This function is called when workspace&#39;s name, backed stream, location </span>
+<span class="sd">           or machine name should be changed.</span>
+<span class="sd">           &quot;&quot;&quot;</span>
+        
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+                   <span class="s2">&quot;name&quot;</span>        <span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;location&quot;</span>    <span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_location</span><span class="p">,</span> <span class="s2">&quot;-l&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;stream&quot;</span>      <span class="p">:</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_stream</span><span class="p">,</span> <span class="s2">&quot;-b&quot;</span><span class="p">),</span>
+                   <span class="s2">&quot;machinename&quot;</span> <span class="p">:</span> <span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">(),</span> <span class="s2">&quot;-m&quot;</span><span class="p">)</span>
+                   <span class="p">}</span>
+        
+        <span class="k">if</span> <span class="n">value</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">,</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s2">&quot;Changing workspace&#39;s </span><span class="si">%s</span><span class="s2"> to </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> \
+                                <span class="p">(</span><span class="n">parameter</span><span class="p">,</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;chws -w </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> \
+                 <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">,</span> <span class="n">params</span><span class="p">[</span><span class="n">parameter</span><span class="p">][</span><span class="mi">1</span><span class="p">],</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter</span><span class="p">)),</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s2">&quot;Done.&quot;</span>
+    
+    
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.change"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.change">[docs]</a>    <span class="k">def</span> <span class="nf">change</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Changes all parameters of workspace: location, stream, machine name.</span>
+<span class="sd">           &quot;&quot;&quot;</span> 
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;machinename&quot;</span><span class="p">,</span> <span class="bp">None</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">machinename</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">gethostname</span><span class="p">()</span>
+        <span class="k">print</span> <span class="s2">&quot;Changing workspace </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;chws -w </span><span class="si">%s</span><span class="s2"> -l </span><span class="si">%s</span><span class="s2"> -b </span><span class="si">%s</span><span class="s2"> -m </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                                                   <span class="bp">self</span><span class="o">.</span><span class="n">stream</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">machinename</span><span class="p">))</span>
+        <span class="k">print</span> <span class="s2">&quot;Done.&quot;</span></div>
+    
+    <span class="nd">@workspace_name_required</span>
+<div class="viewcode-block" id="ARWorkspace.remove"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.remove">[docs]</a>    <span class="k">def</span> <span class="nf">remove</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Removing workspace </span><span class="si">%s</span><span class="s2">...&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;rmws </span><span class="si">%s</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_workspace</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s2">&quot;Done&quot;</span></div>
+    
+    <span class="nd">@workspace_dir_required</span>
+<div class="viewcode-block" id="ARWorkspace.update"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.update">[docs]</a>    <span class="k">def</span> <span class="nf">update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Starting update of workspace...&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span></div>
+
+    <span class="nd">@workspace_dir_required</span>
+<div class="viewcode-block" id="ARWorkspace.populate"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.populate">[docs]</a>    <span class="k">def</span> <span class="nf">populate</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Starting populate of workspace...&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;pop -O -R .&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="k">print</span> <span class="s2">&quot;Done.&quot;</span></div>
+
+    <span class="nd">@workspace_dir_required</span>
+<div class="viewcode-block" id="ARWorkspace.force_update"><a class="viewcode-back" href="../../api.html#pyaccurev.ARWorkspace.force_update">[docs]</a>    <span class="k">def</span> <span class="nf">force_update</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">print</span> <span class="s2">&quot;Starting update of workspace...&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="s2">&quot;update -9&quot;</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">populate</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">()</span></div></div>
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+    <span class="k">pass</span>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../../search.html" method="get">
+      <div><input type="text" name="q" /></div>
+      <div><input type="submit" value="Go" /></div>
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2016, author.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.4.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.8</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
